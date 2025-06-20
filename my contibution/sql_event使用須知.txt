@@ -1,0 +1,36 @@
+資料庫事件(Event)寫法:(事件為SQL的一種排程功能，可做為即時更新數據統計的方法)
+
+
+-每三分鐘更新一次行人綠燈之計數的 Event
+
+CREATE EVENT IF NOT EXISTS update_minutely_green_light
+ON SCHEDULE EVERY 3 MINUTE #可改為想要的時長，例如5分鐘等。
+DO
+    INSERT INTO daily_green_light_count (date, green_light_count)
+    VALUES (CURDATE(), 
+        (SELECT COUNT(*) FROM traffic_light_status 
+         WHERE light_status = 'green' AND DATE(timestamp) = CURDATE()))
+    ON DUPLICATE KEY UPDATE 
+        green_light_count = (SELECT COUNT(*) FROM traffic_light_status 
+                             WHERE light_status = 'green' 
+                             AND DATE(timestamp) = CURDATE());
+
+
+
+- 每日 00:00 自動插入新日期的 Event
+
+CREATE EVENT IF NOT EXISTS insert_daily_green_light
+ON SCHEDULE EVERY 1 DAY
+STARTS TIMESTAMP(CURDATE() + INTERVAL 1 DAY)
+DO
+INSERT IGNORE INTO daily_green_light_count (date, green_light_count)
+VALUES (CURDATE(), 0);
+
+
+
+
+-每日開啟資料庫，需手動設定event_scheduler為ON (學校電腦因權限問題太麻煩不想直接從電腦裡改成預設ON)
+
+SHOW VARIABLES LIKE 'event_scheduler'; #此為確認event_scheduler的狀態為ON或OF
+
+SET GLOBAL event_scheduler = ON; #若為OFF可將其開啟
