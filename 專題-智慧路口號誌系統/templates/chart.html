@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>每日綠燈次數統計</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #FFEEDD;
+            margin: 20px;
+            color: #333;
+        }
+        h2 {
+            text-align: center;
+            color: #5CADAD;
+            font-style: italic;
+        }
+        .chart-container {
+            width: 80%;
+            max-width: 600px;
+            margin: 20px auto;
+            padding: 20px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            position: relative;
+            height: 400px;
+        }
+        .filter-container {
+            text-align: center;
+            margin-top: 20px;
+        }
+        .filter-container label {
+            color: #5CADAD;
+            font-weight: bold;
+        }
+        .back-button {
+            display: block;
+            width: 200px;
+            margin: 20px auto;
+            padding: 10px 20px;
+            background-color: #5CADAD;
+            color: white;
+            text-align: center;
+            font-size: 16px;
+            text-decoration: none;
+            border-radius: 5px;
+            transition: background 0.3s;
+        }
+        .back-button:hover {
+            background-color: #469696;
+        }
+    </style>
+</head>
+<body>
+    <h2>每日綠燈次數統計</h2>
+    <h3 style="text-align: center; color: #5CADAD; font-style: bold; font-size: 16px;">近七日內結果</h3>
+
+    <div class="chart-container">
+        <canvas id="greenLightChart"></canvas>
+    </div>
+
+    <div class="filter-container">
+        <label for="startDate">開始日期：</label>
+        <input type="date" id="startDate">
+        <label for="endDate">結束日期：</label>
+        <input type="date" id="endDate">
+        <button onclick="updateChart()">篩選其它日期</button>
+    </div>
+    
+    <a href="{{ url_for('index') }}" class="back-button">返回歷史紀錄</a>
+    
+    <script>
+        function formatDateLabel(dateStr) {
+            const date = new Date(dateStr);
+            const options = { year: 'numeric', month: '2-digit', day: '2-digit', weekday: 'short' };
+            return date.toLocaleDateString('zh-TW', options);
+        }
+
+        async function fetchData() {
+            const start = document.getElementById("startDate").value;
+            const end = document.getElementById("endDate").value;
+            let url = "/data";
+            if (start && end) {
+                url += `?start=${start}&end=${end}`;
+            }
+            const response = await fetch(url);
+            return await response.json();
+        }
+
+        async function renderChart() {
+            const data = await fetchData();
+            const labels = data.map(item => formatDateLabel(item.date));
+            const counts = data.map(item => item.green_light_count);
+
+            const ctx = document.getElementById("greenLightChart").getContext("2d");
+            window.greenLightChart = new Chart(ctx, {
+                type: "bar",
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: "綠燈次數",
+                        data: counts,
+                        backgroundColor: "#5CADAD",
+                        borderColor: "#469696",
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: { beginAtZero: true }
+                    },
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    barThickness: 25
+                }
+            });
+        }
+
+        async function updateChart() {
+            const data = await fetchData();
+            const labels = data.map(item => formatDateLabel(item.date));
+            const counts = data.map(item => item.green_light_count);
+
+            if (window.greenLightChart) {
+                window.greenLightChart.data.labels = labels;
+                window.greenLightChart.data.datasets[0].data = counts;
+                window.greenLightChart.update();
+            } else {
+                renderChart();
+            }
+        }
+
+        renderChart();
+    </script>
+</body>
+</html>
